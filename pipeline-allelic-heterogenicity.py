@@ -95,26 +95,38 @@ def get_variants_in_transcript(transcript, genome="hg38"):
     cursor = db.cursor()
 
     query = f"""
-        SELECT chrom, chromStart, chromEnd, name, refUCSC
+        SELECT chrom, chromStart, chromEnd, name, refUCSC, func
         FROM snp151
         WHERE chrom = '{transcript["chrom"]}'
         AND chromStart >= {transcript["tx_start"]}
         AND chromEnd <= {transcript["tx_end"]}
-        AND bitfields LIKE '%clinically-assoc%';    """
+        AND bitfields LIKE '%clinically-assoc%';
+    """
     cursor.execute(query)
     variants = cursor.fetchall()
-    for chrom , chromStart , chromEnd , name ,refNCBI in variants:
-        transcript_variant = {"chrom" : chrom ,
-                              "chromStart" : chromStart,
-                              "chromEnd" : chromEnd ,
-                              "name":name,
-                              "refNCBI" : refNCBI}
-
-
-        yield transcript_variant  
-
-
     
+    variant_count = 0
+    splice_site_count = 0
+    transcript_variants = []
+
+    for chrom, chromStart, chromEnd, name, refNCBI, func in variants:
+        variant = {
+            "chrom": chrom,
+            "chromStart": chromStart,
+            "chromEnd": chromEnd,
+            "name": name,
+            "refNCBI": refNCBI,
+            "func": func
+        }
+
+        if "splice" in func.lower():
+            splice_site_count += 1
+
+        transcript_variants.append(variant)
+        variant_count += 1
+
+    db.close()
+# retrieving gene sequence   
 def fetch_genome_sequence(chrom, start, end, genome="hg38"):
     url = f"https://genome.ucsc.edu/cgi-bin/das/{genome}/dna?segment={chrom}:{start},{end}"
     response = requests.get(url)
